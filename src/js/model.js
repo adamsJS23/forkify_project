@@ -16,7 +16,7 @@ export async function loadRecipe(id) {
   try {
     if (!id) throw new Error('there is no recipe');
     const data = await ajax(`${API_URL}${id}`);
-    state.recipe = formatRecipe(data);
+    state.recipe = createRecipeObject(data);
     // debugger
     if (state.bookmarks.length === 0) return;
     if (state.bookmarks.some(bookmark => bookmark.id === id))
@@ -28,7 +28,7 @@ export async function loadRecipe(id) {
   }
 }
 
-function formatRecipe(data) {
+function createRecipeObject(data) {
   let { recipe } = data.data;
 
   return {
@@ -124,7 +124,7 @@ export async function uploadNewRecipe(newRecipe) {
 
     const data = await ajax(`${API_URL}?key=${API_KEY}`, recipe);
 
-    state.recipe = formatRecipe(data);
+    state.recipe = createRecipeObject(data);
     console.log(state.recipe);
   } catch (err) {
     console.error(err);
