@@ -140,12 +140,16 @@ function clearBookmarks() {
   localStorage.clear('bookmarks');
 }
 // clearBookmarks();
+
+function greeting(){
+  console.log('Morning')
+}
 function init() {
   const data = JSON.parse(localStorage.getItem('bookmarks'));
   if (!data) return;
   state.bookmarks = data;
   console.log(state.bookmarks);
-  console.log('Morning');
-  
+  greeting();
+  console.log('Morning again');
 }
 init();
