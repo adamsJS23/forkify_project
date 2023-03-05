@@ -142,7 +142,7 @@
       this[globalName] = mainExports;
     }
   }
-})({"fA0o9":[function(require,module,exports) {
+})({"d8XZh":[function(require,module,exports) {
 var global = arguments[3];
 var HMR_HOST = null;
 var HMR_PORT = null;
@@ -158,7 +158,7 @@ import type {
 interface ParcelRequire {
   (string): mixed;
   cache: {|[string]: ParcelModule|};
-  hotData: mixed;
+  hotData: {|[string]: mixed|};
   Module: any;
   parent: ?ParcelRequire;
   isParcelRequire: true;
@@ -200,7 +200,7 @@ var OldModule = module.bundle.Module;
 function Module(moduleName) {
     OldModule.call(this, moduleName);
     this.hot = {
-        data: module.bundle.hotData,
+        data: module.bundle.hotData[moduleName],
         _acceptCallbacks: [],
         _disposeCallbacks: [],
         accept: function(fn) {
@@ -210,10 +210,11 @@ function Module(moduleName) {
             this._disposeCallbacks.push(fn);
         }
     };
-    module.bundle.hotData = undefined;
+    module.bundle.hotData[moduleName] = undefined;
 }
 module.bundle.Module = Module;
-var checkedAssets, acceptedAssets, assetsToAccept /*: Array<[ParcelRequire, string]> */ ;
+module.bundle.hotData = {};
+var checkedAssets, assetsToDispose, assetsToAccept /*: Array<[ParcelRequire, string]> */ ;
 function getHostname() {
     return HMR_HOST || (location.protocol.indexOf("http") === 0 ? location.hostname : "localhost");
 }
@@ -236,8 +237,8 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== "undefined") {
     } // $FlowFixMe
     ws.onmessage = async function(event) {
         checkedAssets = {} /*: {|[string]: boolean|} */ ;
-        acceptedAssets = {} /*: {|[string]: boolean|} */ ;
         assetsToAccept = [];
+        assetsToDispose = [];
         var data = JSON.parse(event.data);
         if (data.type === "update") {
             // Remove error overlay if there is one
@@ -249,10 +250,22 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== "undefined") {
             if (handled) {
                 console.clear(); // Dispatch custom event so other runtimes (e.g React Refresh) are aware.
                 if (typeof window !== "undefined" && typeof CustomEvent !== "undefined") window.dispatchEvent(new CustomEvent("parcelhmraccept"));
-                await hmrApplyUpdates(assets);
-                for(var i = 0; i < assetsToAccept.length; i++){
-                    var id = assetsToAccept[i][1];
-                    if (!acceptedAssets[id]) hmrAcceptRun(assetsToAccept[i][0], id);
+                await hmrApplyUpdates(assets); // Dispose all old assets.
+                let processedAssets = {} /*: {|[string]: boolean|} */ ;
+                for(let i = 0; i < assetsToDispose.length; i++){
+                    let id = assetsToDispose[i][1];
+                    if (!processedAssets[id]) {
+                        hmrDispose(assetsToDispose[i][0], id);
+                        processedAssets[id] = true;
+                    }
+                } // Run accept callbacks. This will also re-execute other disposed assets in topological order.
+                processedAssets = {};
+                for(let i = 0; i < assetsToAccept.length; i++){
+                    let id = assetsToAccept[i][1];
+                    if (!processedAssets[id]) {
+                        hmrAccept(assetsToAccept[i][0], id);
+                        processedAssets[id] = true;
+                    }
                 }
             } else fullReload();
         }
@@ -505,30 +518,42 @@ function hmrAcceptCheckOne(bundle, id, depsByBundle) {
     if (checkedAssets[id]) return true;
     checkedAssets[id] = true;
     var cached = bundle.cache[id];
-    assetsToAccept.push([
+    assetsToDispose.push([
         bundle,
         id
     ]);
-    if (!cached || cached.hot && cached.hot._acceptCallbacks.length) return true;
+    if (!cached || cached.hot && cached.hot._acceptCallbacks.length) {
+        assetsToAccept.push([
+            bundle,
+            id
+        ]);
+        return true;
+    }
 }
-function hmrAcceptRun(bundle, id) {
+function hmrDispose(bundle, id) {
     var cached = bundle.cache[id];
-    bundle.hotData = {};
-    if (cached && cached.hot) cached.hot.data = bundle.hotData;
+    bundle.hotData[id] = {};
+    if (cached && cached.hot) cached.hot.data = bundle.hotData[id];
     if (cached && cached.hot && cached.hot._disposeCallbacks.length) cached.hot._disposeCallbacks.forEach(function(cb) {
-        cb(bundle.hotData);
+        cb(bundle.hotData[id]);
     });
     delete bundle.cache[id];
-    bundle(id);
-    cached = bundle.cache[id];
+}
+function hmrAccept(bundle, id) {
+    // Execute the module.
+    bundle(id); // Run the accept callbacks in the new version of the module.
+    var cached = bundle.cache[id];
     if (cached && cached.hot && cached.hot._acceptCallbacks.length) cached.hot._acceptCallbacks.forEach(function(cb) {
         var assetsToAlsoAccept = cb(function() {
             return getParents(module.bundle.root, id);
         });
-        if (assetsToAlsoAccept && assetsToAccept.length) // $FlowFixMe[method-unbinding]
-        assetsToAccept.push.apply(assetsToAccept, assetsToAlsoAccept);
+        if (assetsToAlsoAccept && assetsToAccept.length) {
+            assetsToAlsoAccept.forEach(function(a) {
+                hmrDispose(a[0], a[1]);
+            }); // $FlowFixMe[method-unbinding]
+            assetsToAccept.push.apply(assetsToAccept, assetsToAlsoAccept);
+        }
     });
-    acceptedAssets[id] = true;
 }
 
 },{}],"aenu9":[function(require,module,exports) {
@@ -651,7 +676,7 @@ function init() {
 }
 init();
 
-},{"core-js/modules/es.regexp.flags.js":"gSXXb","core-js/modules/web.immediate.js":"49tUX","regenerator-runtime/runtime":"dXNgZ","./model.js":"Y4A21","./views/recipeView.js":"l60JC","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","./views/paginationView.js":"6z7bi","./views/searchResultView.js":"jcmmR","./views/searchView.js":"9OQAM","../js/views/bookmarkView.js":"7YaI3","regenerator-runtime":"dXNgZ","./views/addRecipeView.js":"i6DNj"}],"gSXXb":[function(require,module,exports) {
+},{"core-js/modules/es.regexp.flags.js":"gSXXb","core-js/modules/web.immediate.js":"49tUX","regenerator-runtime/runtime":"dXNgZ","./model.js":"Y4A21","./views/paginationView.js":"6z7bi","./views/recipeView.js":"l60JC","./views/searchResultView.js":"jcmmR","./views/searchView.js":"9OQAM","../js/views/bookmarkView.js":"7YaI3","regenerator-runtime":"dXNgZ","./views/addRecipeView.js":"i6DNj","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"gSXXb":[function(require,module,exports) {
 var global = require("e5a40295dd75518e");
 var DESCRIPTORS = require("f08adc3fa3170226");
 var defineBuiltInAccessor = require("b8e1fb1154242dea");
@@ -2715,7 +2740,174 @@ async function ajax(url, uploadData = null) {
     }
 }
 
-},{"./config.js":"k5Hzs","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"l60JC":[function(require,module,exports) {
+},{"./config.js":"k5Hzs","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"6z7bi":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+var _view = require("./View");
+var _iconsSvg = require("../../img/icons.svg");
+var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
+class PaginationView extends (0, _view.View) {
+    _parentElement = document.querySelector(".pagination");
+    _generateMarkup(data) {
+        const page = this._data.page;
+        const pageNumber = this._data.pageNumber;
+        if (page === 1 && pageNumber > 1) return `<button data-page="${page + 1}" class="btn--inline pagination__btn--next">
+              <span>Page ${page + 1}</span>
+              <svg class="search__icon">
+                <use href="${0, _iconsSvgDefault.default}#icon-arrow-right"></use>
+              </svg>
+            </button>`;
+        if (page === pageNumber && pageNumber > 1) return `<button data-page="${page - 1}" class="btn--inline pagination__btn--prev">
+            <svg class="search__icon">
+              <use href="${0, _iconsSvgDefault.default}#icon-arrow-left"></use>
+            </svg>
+            <span>Page ${page - 1}</span>
+          </button>`;
+        if (page > 1 && pageNumber > 1) return `<button data-page="${page + 1}" class="btn--inline pagination__btn--next">
+                        <span>Page ${page + 1}</span>
+                        <svg class="search__icon">
+                          <use href="${0, _iconsSvgDefault.default}#icon-arrow-right"></use>
+                        </svg>
+                      </button>
+              <button data-page="${page - 1}" class="btn--inline pagination__btn--prev">
+                  <svg class="search__icon">
+                    <use href="${0, _iconsSvgDefault.default}#icon-arrow-left"></use>
+                  </svg>
+                  <span>Page ${page - 1}</span>
+              </button>`;
+        return "";
+    }
+    addhandlerClick(handler) {
+        this._parentElement.addEventListener("click", function(e) {
+            const btn = e.target.closest(".btn--inline");
+            if (!btn) return;
+            const goToPage = +btn.dataset.page;
+            handler(goToPage);
+        });
+    }
+}
+exports.default = new PaginationView();
+
+},{"./View":"5cUXS","../../img/icons.svg":"cMpiy","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"5cUXS":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "View", ()=>View);
+var _iconsSvg = require("../../img/icons.svg");
+var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
+class View {
+    _data;
+    /**
+ * 
+ * @param {*} data 
+ * @param {*} render 
+ * @returns 
+ */ render(data, render = true) {
+        if (!data || Array.isArray(data) && data.length === 0) return this.renderError();
+        this._data = data;
+        const markUp = this._generateMarkup();
+        if (!render) return markUp;
+        this._clear();
+        this._parentElement.insertAdjacentHTML("afterbegin", markUp);
+    }
+    /**
+   * 
+   * @param {*} data 
+   */ update(data) {
+        // if (!data || (Array.isArray(data) && data.length === 0))
+        //   return this.renderError();
+        this._data = data;
+        const newMarkUp = this._generateMarkup();
+        const newDOM = document.createRange().createContextualFragment(newMarkUp);
+        const newElements = Array.from(newDOM.querySelectorAll("*"));
+        const curElements = Array.from(this._parentElement.querySelectorAll("*"));
+        newElements.forEach((newEl, i)=>{
+            const curEl = curElements[i];
+            // Updates changed TEXT
+            if (!newEl.isEqualNode(curEl) && newEl.firstChild?.nodeValue.trim() != "") curEl.textContent = newEl.textContent;
+            // Updates changed ATTRIBUTES
+            if (!newEl.isEqualNode(curEl)) Array.from(newEl.attributes).forEach((attr)=>curEl.setAttribute(attr.name, attr.value));
+        });
+    }
+    _clear() {
+        this._parentElement.innerHTML = "";
+    }
+    renderSpinner() {
+        const markUp = `
+                  <div class="spinner">
+                    <svg>
+                    <use href="${(0, _iconsSvgDefault.default)}#icon-loader"></use>
+                    </svg>
+                  </div>`;
+        this._clear();
+        this._parentElement.insertAdjacentHTML("afterbegin", markUp);
+    }
+    renderError(message = this._errorMessage) {
+        const markUp = `
+        <div class="error">
+          <div>
+            <svg>
+              <use href="${(0, _iconsSvgDefault.default)}#icon-alert-triangle"></use>
+            </svg>
+          </div>
+          <p>${message}</p>
+        </div>`;
+        this._clear();
+        this._parentElement.insertAdjacentHTML("afterbegin", markUp);
+    }
+    renderMessage(message = this._message) {
+        const markUp = `
+          <div class="message">
+            <div>
+              <svg>
+                <use href="${(0, _iconsSvgDefault.default)}#icon-smile"></use>
+              </svg>
+            </div>
+            <p>${message}</p>
+        </div>
+        `;
+        this._clear();
+        this._parentElement.insertAdjacentHTML("afterbegin", markUp);
+    }
+}
+
+},{"../../img/icons.svg":"cMpiy","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"cMpiy":[function(require,module,exports) {
+module.exports = require("42e0035b4087604").getBundleURL("hWUTQ") + "icons.21bad73c.svg" + "?" + Date.now();
+
+},{"42e0035b4087604":"lgJ39"}],"lgJ39":[function(require,module,exports) {
+"use strict";
+var bundleURL = {};
+function getBundleURLCached(id) {
+    var value = bundleURL[id];
+    if (!value) {
+        value = getBundleURL();
+        bundleURL[id] = value;
+    }
+    return value;
+}
+function getBundleURL() {
+    try {
+        throw new Error();
+    } catch (err) {
+        var matches = ("" + err.stack).match(/(https?|file|ftp|(chrome|moz|safari-web)-extension):\/\/[^)\n]+/g);
+        if (matches) // The first two stack frames will be this function and getBundleURLCached.
+        // Use the 3rd one, which will be a runtime in the original bundle.
+        return getBaseURL(matches[2]);
+    }
+    return "/";
+}
+function getBaseURL(url) {
+    return ("" + url).replace(/^((?:https?|file|ftp|(chrome|moz|safari-web)-extension):\/\/.+)\/[^/]+$/, "$1") + "/";
+} // TODO: Replace uses with `new URL(url).origin` when ie11 is no longer supported.
+function getOrigin(url) {
+    var matches = ("" + url).match(/(https?|file|ftp|(chrome|moz|safari-web)-extension):\/\/[^/]+/);
+    if (!matches) throw new Error("Origin not found");
+    return matches[0];
+}
+exports.getBundleURL = getBundleURLCached;
+exports.getBaseURL = getBaseURL;
+exports.getOrigin = getOrigin;
+
+},{}],"l60JC":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 var _iconsSvg = require("url:../../img/icons.svg");
@@ -2857,41 +3049,7 @@ exports.default = new RecipeView();
 },{"url:../../img/icons.svg":"loVOp","fractional":"3SU56","./View.js":"5cUXS","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"loVOp":[function(require,module,exports) {
 module.exports = require("a3beef7786bb282f").getBundleURL("hWUTQ") + "icons.dfd7a6db.svg" + "?" + Date.now();
 
-},{"a3beef7786bb282f":"lgJ39"}],"lgJ39":[function(require,module,exports) {
-"use strict";
-var bundleURL = {};
-function getBundleURLCached(id) {
-    var value = bundleURL[id];
-    if (!value) {
-        value = getBundleURL();
-        bundleURL[id] = value;
-    }
-    return value;
-}
-function getBundleURL() {
-    try {
-        throw new Error();
-    } catch (err) {
-        var matches = ("" + err.stack).match(/(https?|file|ftp|(chrome|moz|safari-web)-extension):\/\/[^)\n]+/g);
-        if (matches) // The first two stack frames will be this function and getBundleURLCached.
-        // Use the 3rd one, which will be a runtime in the original bundle.
-        return getBaseURL(matches[2]);
-    }
-    return "/";
-}
-function getBaseURL(url) {
-    return ("" + url).replace(/^((?:https?|file|ftp|(chrome|moz|safari-web)-extension):\/\/.+)\/[^/]+$/, "$1") + "/";
-} // TODO: Replace uses with `new URL(url).origin` when ie11 is no longer supported.
-function getOrigin(url) {
-    var matches = ("" + url).match(/(https?|file|ftp|(chrome|moz|safari-web)-extension):\/\/[^/]+/);
-    if (!matches) throw new Error("Origin not found");
-    return matches[0];
-}
-exports.getBundleURL = getBundleURLCached;
-exports.getBaseURL = getBaseURL;
-exports.getOrigin = getOrigin;
-
-},{}],"3SU56":[function(require,module,exports) {
+},{"a3beef7786bb282f":"lgJ39"}],"3SU56":[function(require,module,exports) {
 /*
 fraction.js
 A Javascript fraction library.
@@ -3144,140 +3302,7 @@ Fraction.primeFactors = function(n) {
 };
 module.exports.Fraction = Fraction;
 
-},{}],"5cUXS":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "View", ()=>View);
-var _iconsSvg = require("../../img/icons.svg");
-var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
-class View {
-    _data;
-    /**
- * 
- * @param {*} data 
- * @param {*} render 
- * @returns 
- */ render(data, render = true) {
-        if (!data || Array.isArray(data) && data.length === 0) return this.renderError();
-        this._data = data;
-        const markUp = this._generateMarkup();
-        if (!render) return markUp;
-        this._clear();
-        this._parentElement.insertAdjacentHTML("afterbegin", markUp);
-    }
-    /**
-   * 
-   * @param {*} data 
-   */ update(data) {
-        // if (!data || (Array.isArray(data) && data.length === 0))
-        //   return this.renderError();
-        this._data = data;
-        const newMarkUp = this._generateMarkup();
-        const newDOM = document.createRange().createContextualFragment(newMarkUp);
-        const newElements = Array.from(newDOM.querySelectorAll("*"));
-        const curElements = Array.from(this._parentElement.querySelectorAll("*"));
-        newElements.forEach((newEl, i)=>{
-            const curEl = curElements[i];
-            // Updates changed TEXT
-            if (!newEl.isEqualNode(curEl) && newEl.firstChild?.nodeValue.trim() != "") curEl.textContent = newEl.textContent;
-            // Updates changed ATTRIBUTES
-            if (!newEl.isEqualNode(curEl)) Array.from(newEl.attributes).forEach((attr)=>curEl.setAttribute(attr.name, attr.value));
-        });
-    }
-    _clear() {
-        this._parentElement.innerHTML = "";
-    }
-    renderSpinner() {
-        const markUp = `
-                  <div class="spinner">
-                    <svg>
-                    <use href="${(0, _iconsSvgDefault.default)}#icon-loader"></use>
-                    </svg>
-                  </div>`;
-        this._clear();
-        this._parentElement.insertAdjacentHTML("afterbegin", markUp);
-    }
-    renderError(message = this._errorMessage) {
-        const markUp = `
-        <div class="error">
-          <div>
-            <svg>
-              <use href="${(0, _iconsSvgDefault.default)}#icon-alert-triangle"></use>
-            </svg>
-          </div>
-          <p>${message}</p>
-        </div>`;
-        this._clear();
-        this._parentElement.insertAdjacentHTML("afterbegin", markUp);
-    }
-    renderMessage(message = this._message) {
-        const markUp = `
-          <div class="message">
-            <div>
-              <svg>
-                <use href="${(0, _iconsSvgDefault.default)}#icon-smile"></use>
-              </svg>
-            </div>
-            <p>${message}</p>
-        </div>
-        `;
-        this._clear();
-        this._parentElement.insertAdjacentHTML("afterbegin", markUp);
-    }
-}
-
-},{"../../img/icons.svg":"cMpiy","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"cMpiy":[function(require,module,exports) {
-module.exports = require("42e0035b4087604").getBundleURL("hWUTQ") + "icons.21bad73c.svg" + "?" + Date.now();
-
-},{"42e0035b4087604":"lgJ39"}],"6z7bi":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-var _view = require("./View");
-var _iconsSvg = require("../../img/icons.svg");
-var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
-class PaginationView extends (0, _view.View) {
-    _parentElement = document.querySelector(".pagination");
-    _generateMarkup(data) {
-        const page = this._data.page;
-        const pageNumber = this._data.pageNumber;
-        if (page === 1 && pageNumber > 1) return `<button data-page="${page + 1}" class="btn--inline pagination__btn--next">
-              <span>Page ${page + 1}</span>
-              <svg class="search__icon">
-                <use href="${0, _iconsSvgDefault.default}#icon-arrow-right"></use>
-              </svg>
-            </button>`;
-        if (page === pageNumber && pageNumber > 1) return `<button data-page="${page - 1}" class="btn--inline pagination__btn--prev">
-            <svg class="search__icon">
-              <use href="${0, _iconsSvgDefault.default}#icon-arrow-left"></use>
-            </svg>
-            <span>Page ${page - 1}</span>
-          </button>`;
-        if (page > 1 && pageNumber > 1) return `<button data-page="${page + 1}" class="btn--inline pagination__btn--next">
-                        <span>Page ${page + 1}</span>
-                        <svg class="search__icon">
-                          <use href="${0, _iconsSvgDefault.default}#icon-arrow-right"></use>
-                        </svg>
-                      </button>
-              <button data-page="${page - 1}" class="btn--inline pagination__btn--prev">
-                  <svg class="search__icon">
-                    <use href="${0, _iconsSvgDefault.default}#icon-arrow-left"></use>
-                  </svg>
-                  <span>Page ${page - 1}</span>
-              </button>`;
-        return "";
-    }
-    addhandlerClick(handler) {
-        this._parentElement.addEventListener("click", function(e) {
-            const btn = e.target.closest(".btn--inline");
-            if (!btn) return;
-            const goToPage = +btn.dataset.page;
-            handler(goToPage);
-        });
-    }
-}
-exports.default = new PaginationView();
-
-},{"./View":"5cUXS","../../img/icons.svg":"cMpiy","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"jcmmR":[function(require,module,exports) {
+},{}],"jcmmR":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 var _iconsSvg = require("url:../../img/icons.svg");
@@ -3420,6 +3445,6 @@ class AddRecipeView extends (0, _viewJs.View) {
 }
 exports.default = new AddRecipeView();
 
-},{"./View.js":"5cUXS","../../img/icons.svg":"cMpiy","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}]},["fA0o9","aenu9"], "aenu9", "parcelRequire3a11")
+},{"./View.js":"5cUXS","../../img/icons.svg":"cMpiy","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}]},["d8XZh","aenu9"], "aenu9", "parcelRequire3a11")
 
 //# sourceMappingURL=index.e37f48ea.js.map
