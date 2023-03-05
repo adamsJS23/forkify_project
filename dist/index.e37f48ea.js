@@ -2912,8 +2912,9 @@ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 var _iconsSvg = require("url:../../img/icons.svg");
 var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
-var _fractional = require("fractional");
+var _fractional = require("Fractional");
 var _viewJs = require("./View.js");
+// var Fraction = require('fractional').Fraction
 class RecipeView extends (0, _viewJs.View) {
     _parentElement = document.querySelector(".recipe");
     _errorMessage = "We could not display the recipe, No recipe was found!!";
@@ -3046,10 +3047,10 @@ class RecipeView extends (0, _viewJs.View) {
 }
 exports.default = new RecipeView();
 
-},{"url:../../img/icons.svg":"loVOp","fractional":"3SU56","./View.js":"5cUXS","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"loVOp":[function(require,module,exports) {
+},{"url:../../img/icons.svg":"loVOp","./View.js":"5cUXS","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","Fractional":"9o2uX"}],"loVOp":[function(require,module,exports) {
 module.exports = require("a3beef7786bb282f").getBundleURL("hWUTQ") + "icons.dfd7a6db.svg" + "?" + Date.now();
 
-},{"a3beef7786bb282f":"lgJ39"}],"3SU56":[function(require,module,exports) {
+},{"a3beef7786bb282f":"lgJ39"}],"9o2uX":[function(require,module,exports) {
 /*
 fraction.js
 A Javascript fraction library.
